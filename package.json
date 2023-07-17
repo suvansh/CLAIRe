@@ -1,0 +1,38 @@
+{
+  "name": "claire",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.4.0",
+    "@fortawesome/react-fontawesome": "^0.2.0",
+    "@types/node": "20.3.1",
+    "@types/react": "18.2.12",
+    "@types/react-dom": "18.2.5",
+    "autoprefixer": "10.4.14",
+    "chromadb": "^1.5.2",
+    "eslint": "8.42.0",
+    "eslint-config-next": "13.4.6",
+    "langchain": "^0.0.95",
+    "moment": "^2.29.4",
+    "next": "13.4.6",
+    "peggy": "^3.0.2",
+    "postcss": "8.4.24",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwindcss": "3.3.2",
+    "typescript": "5.1.3",
+    "uuid": "^9.0.0"
+  },
+  "dev": "NODE_OPTIONS='--inspect' next dev",
+  "devDependencies": {
+    "@types/dotenv": "^8.2.0",
+    "@types/node-schedule": "^2.1.0",
+    "dotenv": "^16.3.1"
+  }
+}
