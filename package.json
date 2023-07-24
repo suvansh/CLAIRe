@@ -18,7 +18,9 @@
     "chromadb": "^1.5.2",
     "eslint": "8.42.0",
     "eslint-config-next": "13.4.6",
-    "langchain": "^0.0.95",
+    "langchain": "^0.0.110",
+    "lodash": "^4.17.21",
+    "lodash.debounce": "^4.0.8",
     "moment": "^2.29.4",
     "next": "13.4.6",
     "peggy": "^3.0.2",
@@ -32,6 +34,7 @@
   "dev": "NODE_OPTIONS='--inspect' next dev",
   "devDependencies": {
     "@types/dotenv": "^8.2.0",
+    "@types/lodash.debounce": "^4.0.7",
     "@types/node-schedule": "^2.1.0",
     "dotenv": "^16.3.1"
   }

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getScheduledMessages, removeSentMessages } from '../../utils/messageUtils';
+import { getScheduledMessages, removeSentMessages } from '../../utils/scheduledMessageUtils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -12,11 +12,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = req.query.user as string;
 
   const scheduledMessages = getScheduledMessages(user);
-  console.log("scheduledMessages:", scheduledMessages);
 
   // Remove the sent messages after they've been fetched
   const sentMessageIds = scheduledMessages.map((message) => message.id);
-  console.log("sentMessageIds:", sentMessageIds);
   removeSentMessages(user, sentMessageIds);
 
   res.json({ messages: scheduledMessages });

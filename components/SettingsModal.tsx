@@ -2,29 +2,33 @@ import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useRef } from 'react';
 import useOutsideAlerter from './OutsideAlerter';
-import type { IMessage } from '../types/types';
+import type { IMessage, Profile } from '../types/types';
 
 
 type SettingsModalProps = {
-    user: string;
+    profile: Profile | null;
     onClose: () => void;
     setTempApiError: (error: string) => void;
     setTempSuccessMessage: (message: string) => void;
     setMessages: (messages: IMessage[]) => void;
 };
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ user, onClose, setTempApiError, setTempSuccessMessage, setMessages }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ profile, onClose, setTempApiError, setTempSuccessMessage, setMessages }) => {
     const ref = useRef(null);
     useOutsideAlerter(ref, onClose);
 
     const handleClearData = async () => {
-        if (window.confirm(`Are you sure you want to erase all data for user ${user}?`)) {
+        if (!profile) {
+            console.log('No profile selected');
+            return;
+        }
+        if (window.confirm(`Are you sure you want to erase all data for user ${profile.name}?`)) {
             const res = await fetch('/api/delete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ user })
+                body: JSON.stringify({ profile })
             });
 
             if (res.ok) {

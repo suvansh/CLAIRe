@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMoon, faSun, faCog, faUser } from '@fortawesome/free-solid-svg-icons';
 import SettingsModal from '../components/SettingsModal';
 import ProfileSwitcher from '../components/ProfileSwitcher';
-import type { IMessage } from '../types/types';
+import type { IMessage, Profile } from '../types/types';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -23,23 +23,25 @@ const Home = () => {
   const [newMessage, setNewMessage] = useState<string>('');
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [model, setModel] = useState<string>("gpt-3.5-turbo");
+  const [model, setModel] = useState<string>("gpt-3.5-turbo-16k");
 
   const [darkMode, setDarkMode] = useState<boolean>(true);
 
-  const [profiles, setProfiles] = useState<string[]>([]);
-  const [currentProfile, setCurrentProfile] = useState<string>('');
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
 
-  const handleSelectProfile = (profile: string) => {
+  const currentProfileRef = useRef(currentProfile);
+
+  const handleSelectProfile = (profile: Profile) => {
     setCurrentProfile(profile);
     setMessages([]);
     setShowProfileSwitcher(false);
   };
 
-  const handleProfileChange = (newProfiles: string[], newProfile: string | null, clear: boolean) => {
+  const handleProfileChange = (newProfiles: Profile[], newProfile: Profile | null, clear: boolean) => {
     setProfiles(newProfiles);
-    if (newProfile === null && currentProfile !== newProfiles[0]) {
+    if (newProfile === null && currentProfile?.uuid !== newProfiles[0].uuid) {
       setCurrentProfile(newProfiles[0]);
     } else if (newProfile !== null) {
       setCurrentProfile(newProfile);
@@ -49,7 +51,31 @@ const Home = () => {
     }
   };
 
+  const loadMoreMessages = async (message: IMessage | undefined) => {
+    if (currentProfileRef.current === null) {
+      // currentProfile is not set yet, so we can't make the API request.
+      return [];
+    }
+    const res = await fetch("/api/history", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ profile: currentProfileRef.current, message })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.messages;
+    }
+    return [];
+  };
+
   // effects
+
+  useEffect(() => {
+    currentProfileRef.current = currentProfile;
+  }, [currentProfile]);
+
   useEffect(() => {
     if (darkMode) {
       document.body.classList.add('dark');
@@ -70,7 +96,7 @@ const Home = () => {
 
   useEffect(() => {
     const fetchScheduledMessages = async () => {
-      const res = await fetch(`/api/scheduledMessages?user=${currentProfile}`);
+      const res = await fetch(`/api/scheduledMessages?user=${currentProfileRef.current}`);
       if (res.ok) {
         const data = await res.json();
         if (data.messages) {
@@ -84,7 +110,7 @@ const Home = () => {
 
     // Cleanup function to clear the interval when the component unmounts
     return () => clearInterval(interval);
-  }, [currentProfile]);
+  }, []);
 
 
   const toggleDarkMode = () => {
@@ -116,7 +142,7 @@ const Home = () => {
       setIsSubmitting(true);
 
       const payload = {
-        history: messages,
+        history: messages.slice(-20),
         input: incomingMessage,
         model: model,
         user: currentProfile
@@ -206,7 +232,7 @@ const Home = () => {
               </button>
               <button className="dark:text-gray-200 text-gray-700 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded flex items-center" onClick={() => setShowProfileSwitcher(true)}>
                 <FontAwesomeIcon icon={faUser} />
-                <span className="ml-1">{currentProfile}</span>
+                <span className="ml-1">{currentProfile?.name ?? ""}</span>
               </button>
             </div>
             {isSettingsVisible && <SettingsModal user={currentProfile} onClose={() => setSettingsVisible(false)} setMessages={setMessages} setTempApiError={setTempApiError} setTempSuccessMessage={setTempSuccessMessage} />}
@@ -227,7 +253,7 @@ const Home = () => {
           <p className="text-center text-gray-700 dark:text-gray-200 pb-2">Read about how it works <a target="_blank" href="https://www.brilliantly.ai/blog/claire">here</a>.</p>
           <form className="w-full max-w-7xl bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4 text-center">
             <ModeButtons
-              options={[{ name: 'GPT-4', value: 'gpt-4' }, { name: 'GPT-3.5', value: 'gpt-3.5-turbo' }]}
+              options={[{ name: 'GPT-4', value: 'gpt-4' }, { name: 'GPT-3.5', value: 'gpt-3.5-turbo-16k' }]}
               tooltipContent="GPT-3.5 is ~5x faster and 15x cheaper than GPT-4."
               selectedOption={model}
               onOptionChange={setModel}
@@ -246,6 +272,7 @@ const Home = () => {
                 setNewMessage={setNewMessage}
                 onSendMessage={handleSubmit}
                 isSubmitting={isSubmitting}
+                loadMoreMessages={loadMoreMessages}
               />
             </div>
           </div>

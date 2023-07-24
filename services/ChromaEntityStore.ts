@@ -8,7 +8,6 @@ import type { DocumentMetadata } from "../types/types";
 import moment from "moment";
 
 
-const DEFAULT_CLAIRE_ENTITY_STORE_NAME: string = "claire-default-entity-dev";
 const DEFAULT_SIMILARITY_K: number = 3;
 
 export default class ChromaEntityStore extends BaseEntityStore {
@@ -20,21 +19,19 @@ export default class ChromaEntityStore extends BaseEntityStore {
     private chromaClient: ChromaClient | undefined;
     private limit: number | undefined;
 
-    private constructor(chromaCollection: string | undefined, store: Chroma, collection: Collection, limit: number | undefined) {
+    private constructor(chromaCollection: string, store: Chroma, collection: Collection, limit: number | undefined) {
         super();
-        this.collectionName = chromaCollection ?? DEFAULT_CLAIRE_ENTITY_STORE_NAME;
+        this.collectionName = chromaCollection;
         this.store = store;
         this.collection = collection;
         this.chromaClient = this.store.index;
         this.limit = limit;
     }
 
-    static async create(chromaCollection: string | undefined, limit: number | undefined = undefined): Promise<ChromaEntityStore> {
-        const collectionName = chromaCollection ?? DEFAULT_CLAIRE_ENTITY_STORE_NAME;
+    static async create(chromaCollection: string, limit: number | undefined = undefined): Promise<ChromaEntityStore> {
+        const collectionName = chromaCollection;
         const store = new Chroma(new OpenAIEmbeddings(), { collectionName });
         const collection = await store.ensureCollection();
-        console.log(`items of entity collection ${collectionName}:\n`, await collection.get())
-
         return new ChromaEntityStore(chromaCollection, store, collection, limit);
     }
 
@@ -48,7 +45,7 @@ export default class ChromaEntityStore extends BaseEntityStore {
         return documents.map((doc, i) => {
             if (!doc) return "";
             const metadata = metadatas?.[i];
-            const created = metadata?.created ? moment(metadata.created).format("ddd MM/DD/YYYY HH:mm Z") : "(unknown date)";
+            const created = metadata?.created ? moment(metadata.created as number).format("ddd MM/DD/YYYY HH:mm Z") : "(unknown date)";
             return `${created}: ${doc}`;
         }).join("\n");
     }
@@ -80,8 +77,8 @@ export default class ChromaEntityStore extends BaseEntityStore {
                 return { document, id: entityResults.ids[i], metadata: entityResults.metadatas[i] };
             });
             docsAndMetadatas.sort((a, b) => {
-                const aDate = a.metadata?.created ? moment(a.metadata.created).unix() : 0;
-                const bDate = b.metadata?.created ? moment(b.metadata.created).unix() : 0;
+                const aDate = a.metadata?.created ? moment(a.metadata.created as number).unix() : 0;
+                const bDate = b.metadata?.created ? moment(b.metadata.created as number).unix() : 0;
                 return aDate - bDate;
             });
             // get the most recent limit docs
@@ -127,12 +124,11 @@ export default class ChromaEntityStore extends BaseEntityStore {
     }
 
     async getBySimilarity(query: string, limit: number | undefined = undefined): Promise<Record<string, DocumentMetadata[]>> {
-        // const results = await this.store.similaritySearch(query, limit ?? this.limit ?? DEFAULT_SIMILARITY_K);
         const chromaResults = await this.collection.query({
             queryEmbeddings: await this.store.embeddings.embedQuery(query),
             nResults: limit ?? this.limit ?? DEFAULT_SIMILARITY_K
         });
-        if (!chromaResults.ids) {
+        if (!chromaResults.ids[0]) {
             return {};
         }
         const results = chromaResults.ids[0].map((id, i) => {
@@ -150,13 +146,5 @@ export default class ChromaEntityStore extends BaseEntityStore {
             return acc;
         }, {} as { [key: string]: DocumentMetadata[] });
         return groupedResults;
-        // const entityStringMapping: {[key: string]: string} = {};
-        // for (const [entityName, docs] of Object.entries(groupedResults)) {
-        //   entityStringMapping[entityName] = ChromaEntityStore.getEntityString(
-        //     docs.map(({ document }) => document),
-        //     docs.map(({ metadata }) => metadata)
-        //   );
-        // }
-        // return entityStringMapping;
     }
 }

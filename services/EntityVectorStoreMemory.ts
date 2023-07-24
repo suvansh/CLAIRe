@@ -1,6 +1,7 @@
-import { BaseEntityStore, HumanChatMessage } from "langchain/schema";
+import { BaseChatMessageHistory, BaseEntityStore, HumanMessage } from "langchain/schema";
 import { BaseChatMemory, BaseChatMemoryInput } from "langchain/memory";
 import { BaseLanguageModel } from "langchain/base_language";
+import { Chroma } from "langchain/vectorstores/chroma";
 import { ENTITY_EXTRACTION_PROMPT, CLAIRE_ENTITY_SUMMARIZATION_PROMPT } from "../prompts/entity";
 import { getBufferString, getInputValue } from "langchain/memory";
 import { DocumentMetadata, InputValues, OutputValues } from "../types/types";
@@ -8,13 +9,15 @@ import { LLMChain } from "langchain/chains";
 import { PromptTemplate } from "langchain/prompts";
 import { Document } from "langchain/document";
 import { VectorStoreRetriever } from "langchain/vectorstores/base.js";
-import { getPromptInputKey } from "./utils";
+import { Metadata } from "chromadb/src/types"
+import { getPromptInputKey, getOutputValue } from "./utils";
 import ChromaEntityStore from "./ChromaEntityStore";
 import moment from "moment";
+import { ChromaChatMessageHistory } from "./ChromaChatMessageHistory";
 
-export interface EntityVectorStoreMemoryInput extends BaseChatMemoryInput {
+export interface ClaireMemoryInput extends BaseChatMemoryInput {
   llm: BaseLanguageModel;
-  vectorStoreRetriever: VectorStoreRetriever;
+  chroma: Chroma;
   k?: number;
   entityStore?: BaseEntityStore;
   entityStoreCollectionName?: string;
@@ -32,11 +35,11 @@ export interface EntityVectorStoreMemoryInput extends BaseChatMemoryInput {
   similarEntityLimit?: number;
 }
 
-export class EntityVectorStoreMemory extends BaseChatMemory implements EntityVectorStoreMemoryInput {
+export class ClaireMemory extends BaseChatMemory implements ClaireMemoryInput {
   private entityExtractionChain: LLMChain;
   private entitySummarizationChain: LLMChain;
   entityStore: BaseEntityStore;
-  vectorStoreRetriever: VectorStoreRetriever;
+  chroma: Chroma;
   entityCache: string[] = [];
   k = 3;
   chatHistoryKey = "history";
@@ -50,16 +53,16 @@ export class EntityVectorStoreMemory extends BaseChatMemory implements EntityVec
   aiPrefix?: string;
   similarEntityLimit = 3;
 
-  private constructor(fields: EntityVectorStoreMemoryInput, entityStore: BaseEntityStore) {
+  private constructor(fields: ClaireMemoryInput, entityStore: BaseEntityStore, chromaChatHistory: BaseChatMessageHistory) {
     super({
-      chatHistory: fields.chatHistory,
+      chatHistory: chromaChatHistory,
       returnMessages: fields.returnMessages ?? false,
       inputKey: fields.inputKey,
       outputKey: fields.outputKey,
     });
 
     this.llm = fields.llm;
-    this.vectorStoreRetriever = fields.vectorStoreRetriever;
+    this.chroma = fields.chroma;
     this.humanPrefix = fields.humanPrefix;
     this.aiPrefix = fields.aiPrefix;
     this.chatHistoryKey = fields.chatHistoryKey ?? this.chatHistoryKey;
@@ -81,29 +84,38 @@ export class EntityVectorStoreMemory extends BaseChatMemory implements EntityVec
     this.similarEntityLimit = fields.similarEntityLimit ?? this.similarEntityLimit;
   }
 
-  static async create(fields: EntityVectorStoreMemoryInput): Promise<EntityVectorStoreMemory> {
-    const entityStore = fields.entityStore ?? await ChromaEntityStore.create(fields.entityStoreCollectionName);
-    return new EntityVectorStoreMemory(fields, entityStore);
+  static async create(fields: ClaireMemoryInput): Promise<ClaireMemory> {
+    if (!fields.entityStore && !fields.entityStoreCollectionName) {
+      throw new Error("Must provide either entityStore or entityStoreCollectionName");
+    }
+    const entityStore = fields.entityStore ?? await ChromaEntityStore.create(fields.entityStoreCollectionName!);
+    if (fields.chatHistory && !(fields.chatHistory instanceof ChromaChatMessageHistory)) {
+      throw new Error("EntityVectorStoreMemory is only compatible with ChromaChatMessageHistory");
+    }
+    const chatHistory = fields.chatHistory ?? await ChromaChatMessageHistory.create(fields.chroma, fields.k ?? 3);
+    return new ClaireMemory(fields, entityStore, chatHistory);
   }
 
   get memoryKeys() {
-    return [this.userKey, this.dateTimeKey, this.chatHistoryKey, this.entitiesKey, this.memoryKey];
+    return [this.userKey, this.dateTimeKey, this.entitiesKey, this.memoryKey];
   }
 
   async loadMemoryVariables(inputs: InputValues) {
     // adapted from EntityMemory
     const promptInputKey = this.inputKey ?? getPromptInputKey(inputs, this.memoryKeys);
-    const messages = await this.chatHistory.getMessages();
+    const messages = getInputValue(inputs, this.chatHistoryKey);
     const serializedMessages = getBufferString(
       messages.slice(-this.k * 2),
       this.humanPrefix,
       this.aiPrefix
     );
     const fullSerializedMessages: string = getBufferString(
-      [...messages.slice(-this.k * 2), new HumanChatMessage(inputs[promptInputKey])],
+      [...messages.slice(-this.k * 2), new HumanMessage(inputs[promptInputKey])],
       this.humanPrefix,
       this.aiPrefix,
     )
+
+    // extract entities from messages
     const output = await this.entityExtractionChain.predict({
       history: serializedMessages,
       input: inputs[promptInputKey]
@@ -113,16 +125,23 @@ export class EntityVectorStoreMemory extends BaseChatMemory implements EntityVec
     this.entityCache = [...entities];
 
     const entitySummaries: { [key: string]: string | undefined } = {};
-    if (this.entityStore instanceof ChromaEntityStore) {
+    if (this.entityStore instanceof ChromaEntityStore) { // adds in semantically similar entities
       const entityDocs: { [key: string]: DocumentMetadata[] } = {};
       const relevantEntities: Record<string, DocumentMetadata[]> = await this.entityStore.getBySimilarity(fullSerializedMessages, this.similarEntityLimit);
 
+      // merge in semantically similar entities while ignoring duplicates
       for (const entity of entities) {
         const exactDocs = await this.entityStore.getDocs(entity);
-        const exactDocIds = new Set(exactDocs.map(doc => doc.id));
         const similarDocs = relevantEntities[entity] ?? [];
-        const newDocs = similarDocs.filter((doc) => !exactDocIds.has(doc.id));
-        entityDocs[entity] = [...exactDocs, ...newDocs];
+        let combinedDocs: DocumentMetadata[] = [...exactDocs, ...similarDocs];
+        // eliminate duplicates
+        combinedDocs = combinedDocs.filter(
+          (result, index, self) =>
+            index === self.findIndex((t) => t.id === result.id)
+        );
+        // sort by id
+        combinedDocs.sort((a, b) => ((a.metadata?.created ?? 0) as number) - ((b.metadata?.created ?? 0) as number));
+        entityDocs[entity] = combinedDocs;
       }
 
       for (const [entity, docs] of Object.entries(entityDocs)) {
@@ -140,10 +159,24 @@ export class EntityVectorStoreMemory extends BaseChatMemory implements EntityVec
 
     // adapted from VectorStoreRetrieverMemory
     const query = getInputValue(inputs, this.inputKey);
-    const queryResults = await this.vectorStoreRetriever.getRelevantDocuments(query);
-    const fullResults = await this.vectorStoreRetriever.getRelevantDocuments(fullSerializedMessages);
-    const results = [...new Set([...queryResults, ...fullResults])];
-    const memoryContent = this.returnDocs ? results : results.map((r) => r.pageContent).join("\n");
+    const queryResults = await (this.chatHistory as ChromaChatMessageHistory).searchMessagesSemantic(query);
+    const fullResults = await (this.chatHistory as ChromaChatMessageHistory).searchMessagesExact(fullSerializedMessages);
+    let combinedResults: DocumentMetadata[] = [...queryResults, ...fullResults];
+    combinedResults = combinedResults.filter(
+      (result, index, self) =>
+        index === self.findIndex((t) => t.id === result.id)
+    );
+
+    combinedResults.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+    // Map to a new array of metadata-string tuples with the required prefix based on 'isUser'
+    const prefixedResults: [Metadata | null, string][] = combinedResults.map((result) => {
+      return [result.metadata, (result.metadata?.isUser ? this.humanPrefix : this.aiPrefix) + (result.document ?? "")]
+    });
+
+    const memoryContent = this.returnDocs
+      ? prefixedResults.map(result => new Document({ pageContent: result[1], metadata: result[0] ?? undefined }))
+      : prefixedResults.map(result => result[1]).join("\n");
 
     return {
       [this.userKey]: inputs.user ?? "a human",
@@ -164,33 +197,40 @@ export class EntityVectorStoreMemory extends BaseChatMemory implements EntityVec
       this.humanPrefix,
       this.aiPrefix
     );
-    const inputData = inputs[promptInputKey];
+    const input = getInputValue(inputs, promptInputKey);
+    const output = getOutputValue(outputs, this.outputKey);
     for (const entity of this.entityCache) {
       const existingSummary = await this.entityStore.get(entity, "No current information known.");
-      const output = await this.entitySummarizationChain.predict({
+      const entityOutput = await this.entitySummarizationChain.predict({
         summary: existingSummary,
         entity,
         history: serializedMessages,
         datetime: moment().format("ddd MM/DD/YYYY HH:mm Z"),
-        input: inputData,
+        input: input,
       });
-      if (output.trim() !== "UNCHANGED") {
-        await this.entityStore.set(entity, output.trim());
+      if (entityOutput.trim() !== "UNCHANGED") {
+        await this.entityStore.set(entity, entityOutput.trim());
       }
     }
 
-    // VectorStoreRetrieverMemory
-    const text = Object.entries(inputs)
-      .filter(([k]) => k !== this.memoryKey)
-      .concat(Object.entries(outputs))
-      .map(([k, v]) => `${k}: ${v}`)
-      .join("\n");
-    await this.vectorStoreRetriever.addDocuments([new Document({ pageContent: text })]);
+    // ChromaChatMessageHistory
+    (this.chatHistory as ChromaChatMessageHistory).addUserMessageMetadata(input, {
+      id: "",
+      isUser: true,
+      images: [],
+      timestamp: moment().valueOf()
+    });
+    (this.chatHistory as ChromaChatMessageHistory).addAIChatMessageMetadata(output, {
+      id: "",
+      isUser: false,
+      images: [],
+      timestamp: moment().valueOf()
+    });
   }
 
   async clear() {
     await super.clear();
-    await this.chatHistory.clear()
+    await this.chatHistory.clear();
     await this.entityStore.clear();
   }
 }

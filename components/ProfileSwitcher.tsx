@@ -2,76 +2,73 @@ import { useState, ChangeEvent, FormEvent, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import useOutsideAlerter from './OutsideAlerter';
+import { Profile } from '../types/types';
 
 interface ProfileSwitcherProps {
-    profiles: string[];
+    profiles: Profile[];
     onClose: () => void;
-    onSelectProfile: (profile: string) => void;
-    onProfileChange: (newProfiles: string[], newProfile: string | null, clear: boolean) => void;
+    onSelectProfile: (profile: Profile) => void;
+    onProfileChange: (newProfiles: Profile[], newProfile: Profile | null, clear: boolean) => void;
 }
 
 const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, onSelectProfile, onProfileChange }) => {
     const ref = useRef(null);
     useOutsideAlerter(ref, onClose);
 
-    const [newProfile, setNewProfile] = useState('');
-    const [editingProfile, setEditingProfile] = useState<string | null>(null);
     const [newProfileName, setNewProfileName] = useState<string>("");
+    const [editedProfileName, setEditedProfileName] = useState<string>("");
+    const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleAddProfile = async (event: FormEvent) => {
         event.preventDefault();
+        if (!newProfileName) {
+            return;
+        }
         const response = await fetch('/api/profiles/create', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ profile: newProfile })
+            body: JSON.stringify({ profileName: newProfileName })
         });
         if (response.ok) {
-            const newProfiles = await response.json();
-            onProfileChange(newProfiles, newProfile, true);
-            setNewProfile('');
+            const {newProfile, profiles} = await response.json();
+            onProfileChange(profiles, newProfile, true);
+            setNewProfileName('');
         }
     };
 
-    const handleDeleteProfile = async (profileToDelete: string) => {
-        const confirmDelete = window.confirm(`Are you sure you want to delete the profile ${profileToDelete}?`);
+    const handleDeleteProfile = async (profileToDelete: Profile) => {
+        const confirmDelete = window.confirm(`Are you sure you want to delete the profile ${profileToDelete.name}?`);
         if (confirmDelete) {
-            console.log("confirmed delete");
-            try {
-                const response = await fetch('/api/profiles/delete', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ profile: profileToDelete })
-                });
-                if (response.ok) {
-                  console.log("response ok");
-                  const newProfiles = await response.json();
-                  onProfileChange(newProfiles, null, true);
-                }
-              } catch (error) {
-                console.log("error deleting profile", error);
-                console.error('Error deleting profile:', error);
-              }
-              
+            const response = await fetch('/api/profiles/delete', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ profile: profileToDelete })
+            });
+            if (response.ok) {
+              const profiles = await response.json();
+              onProfileChange(profiles, null, true);
+            }
         }
     };
 
     const handleRenameProfile = async (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && editingProfile !== null) {
+            const updatedProfile = { oldProfile: editingProfile, editedProfileName };
             const response = await fetch('/api/profiles/rename', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ oldProfile: editingProfile, newProfile: newProfileName })
+                body: JSON.stringify(updatedProfile) // send full updated profile
             });
             if (response.ok) {
-                const newProfiles = await response.json();
-                onProfileChange(newProfiles, newProfileName, false);
+                const {profiles, newProfile} = await response.json();
+                onProfileChange(profiles, newProfile, false);
                 setEditingProfile(null);
             }
         }
@@ -81,13 +78,13 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
         setEditingProfile(null);
     };
 
-    const handleEdit = (profile: string) => {
+    const handleEdit = (profile: Profile) => {
         setEditingProfile(profile);
-        setNewProfileName(profile);
+        setEditedProfileName(profile.name);
     };
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setNewProfile(event.target.value);
+        setNewProfileName(event.target.value);
     };
 
     useEffect(() => {
@@ -111,17 +108,17 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
                         </button>
                     </div>
                     {profiles.map((profile) => (
-                        <div key={profile} className="flex justify-between items-center mt-4">
+                        <div key={profile.uuid} className="flex justify-between items-center mt-4">
                             {editingProfile === profile ? (
                                 <input
                                     type="text"
                                     ref={inputRef}
-                                    value={newProfileName}
-                                    onChange={e => setNewProfileName(e.target.value)}
+                                    value={editedProfileName}
+                                    onChange={e => setEditedProfileName(e.target.value)}
                                     onKeyDown={handleRenameProfile}
                                 />
                             ) : (
-                                <button key={profile} onClick={() => onSelectProfile(profile)} className="ml-2 bg-blue-500 text-white px-3 py-1 rounded-md mt-2">{profile}</button>
+                                <button key={profile.uuid} onClick={() => onSelectProfile(profile)} className="ml-2 bg-blue-500 text-white px-3 py-1 rounded-md mt-2">{profile.name}</button>
                             )}
                             <div>
                                 {editingProfile === profile ? (
@@ -138,7 +135,7 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
                     <form onSubmit={handleAddProfile} className="mt-4">
                         <input
                             type="text"
-                            value={newProfile}
+                            value={newProfileName}
                             onChange={handleChange}
                             placeholder="New profile name"
                             className="border rounded-md p-2 w-full"
@@ -149,7 +146,6 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
             </div>
         </div>
     );
-
 };
 
 export default ProfileSwitcher;
