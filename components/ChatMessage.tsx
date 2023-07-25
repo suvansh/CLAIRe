@@ -9,7 +9,7 @@ interface IChatMessageProps {
 const ChatMessage = ({ message }: IChatMessageProps) => {
   if (message.isUser) {
     return (
-      <div className="rounded-lg px-4 py-2 m-2 max-w-xs bg-blue-500 text-white self-end" style={{whiteSpace: 'pre-wrap'}} title={moment(message.timestamp).format('llll')}>
+      <div className="rounded-lg px-4 py-2 m-2 max-w-xl bg-blue-500 text-white self-end" style={{whiteSpace: 'pre-wrap'}} title={moment(message.timestamp).format('llll')}>
         {message.text}
       </div>
     );

@@ -1,17 +1,17 @@
 import fs from 'fs';
 import path from 'path';
-import { IMessage } from '../types/types';
+import { IMessage, Profile } from '../types/types';
 import moment from 'moment';
 import { getClaireDirectory } from './utils';
 
 /**
  * Returns an array of scheduled messages that are due to be sent to the specified user.
  * 
- * @param {string} user - The name of the user whose scheduled messages to retrieve.
+ * @param {string} uuid - The profile UUID whose scheduled messages to retrieve.
  * @returns {IMessage[]} An array of scheduled messages due to be sent to the specified user.
  */
-export function getScheduledMessages(user: string): IMessage[] {
-    const messagesFilePath = path.resolve(getClaireDirectory(), `${user}_storedMessages.json`);
+export function getScheduledMessages(uuid: string): IMessage[] {
+    const messagesFilePath = path.resolve(getClaireDirectory(), `${uuid}_storedMessages.json`);
 
     if (!fs.existsSync(messagesFilePath)) {
         return [];
@@ -29,11 +29,11 @@ export function getScheduledMessages(user: string): IMessage[] {
 /**
  * Removes the specified messages from the specified user's scheduled messages file.
  * 
- * @param {string} user - The name of the user whose scheduled messages to remove.
+ * @param {string} uuid - The profile UUID whose scheduled messages to remove.
  * @param {string[]} sentMessageIds - An array of messages to remove from the user's scheduled messages.
  */
-export function removeSentMessages(user: string, sentMessageIds: string[]): void {
-    const messagesFilePath = path.resolve(getClaireDirectory(), `${user}_storedMessages.json`);
+export function removeSentMessages(uuid: string, sentMessageIds: string[]): void {
+    const messagesFilePath = path.resolve(getClaireDirectory(), `${uuid}_storedMessages.json`);
 
     if (!fs.existsSync(messagesFilePath)) {
         return;
@@ -52,11 +52,11 @@ export function removeSentMessages(user: string, sentMessageIds: string[]): void
 /**
 * Writes a message to the specified user's stored messages file.
 * 
-* @param {string} user - The name of the user to write the message for.
+* @param {string} uuid - The profile UUID to write the message for.
 * @param {IMessage} message - The message to write to the user's stored messages.
 */
-export function writeMessageToFile(user: string, message: IMessage): void {
-    const filePath = path.join(getClaireDirectory(), `${user}_storedMessages.json`);
+export function writeMessageToFile(uuid: string, message: IMessage): void {
+    const filePath = path.join(getClaireDirectory(), `${uuid}_storedMessages.json`);
     let messages = [];
 
     try {

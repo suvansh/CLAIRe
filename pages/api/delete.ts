@@ -10,12 +10,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const profile = req.body.profile;
     const { chroma, memory } = await getMemory(profile);
     await memory.clear();
-    await chroma.ensureCollection();
-    if (chroma.index) {
-        await chroma.index?.deleteCollection({ name: getMessageCollectionName(profile) });
-        res.status(200).json({ message: 'Data cleared successfully.' });
-    }
-    else {
-        res.status(500).json({ message: 'Error clearing data.' });
-    }    
+    res.status(200).json({ message: 'Data cleared successfully.' });
 }

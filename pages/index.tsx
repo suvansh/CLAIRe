@@ -51,27 +51,7 @@ const Home = () => {
     }
   };
 
-  const loadMoreMessages = async (message: IMessage | undefined) => {
-    if (currentProfileRef.current === null) {
-      // currentProfile is not set yet, so we can't make the API request.
-      return [];
-    }
-    const res = await fetch("/api/history", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ profile: currentProfileRef.current, message })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.messages;
-    }
-    return [];
-  };
-
   // effects
-
   useEffect(() => {
     currentProfileRef.current = currentProfile;
   }, [currentProfile]);
@@ -96,7 +76,7 @@ const Home = () => {
 
   useEffect(() => {
     const fetchScheduledMessages = async () => {
-      const res = await fetch(`/api/scheduledMessages?user=${currentProfileRef.current}`);
+      const res = await fetch(`/api/scheduledMessages?uuid=${currentProfileRef.current?.uuid}&name=${currentProfileRef.current?.name}`);
       if (res.ok) {
         const data = await res.json();
         if (data.messages) {
@@ -145,7 +125,7 @@ const Home = () => {
         history: messages.slice(-20),
         input: incomingMessage,
         model: model,
-        user: currentProfile
+        profile: currentProfileRef.current
       };
 
       const updatedMessages = [...messages, { id: uuidv4(), text: incomingMessage, isUser: true, images: [], timestamp: moment().valueOf() }];
@@ -160,7 +140,7 @@ const Home = () => {
       });
       if (!res.body || !res.ok) {
         setMessages(prevMessages => prevMessages.slice(0, -1));
-        setTempApiError('An error occurred while processing your file.');
+        setTempApiError('An error occurred while processing your query.');
         setNewMessage(incomingMessage); // reset the message input
       } else {
         setMessages([...updatedMessages, {
@@ -186,7 +166,7 @@ const Home = () => {
     } catch (err) {
       console.log(err);
       setMessages(prevMessages => prevMessages.slice(0, -1));
-      setTempApiError('An error occurred while processing your file.');
+      setTempApiError('An error occurred while processing your query.');
       setNewMessage(incomingMessage); // reset the message input
     } finally {
       setIsSubmitting(false); // End submission regardless of success or failure
@@ -202,7 +182,7 @@ const Home = () => {
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
         <div
           className="flex flex-col w-full max-w-7xl bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4 overflow-auto"
-          style={{ height: '100vh' }}
+          style={{ height: '98vh' }}
         >
           <div className="relative">
             <h1
@@ -235,7 +215,7 @@ const Home = () => {
                 <span className="ml-1">{currentProfile?.name ?? ""}</span>
               </button>
             </div>
-            {isSettingsVisible && <SettingsModal user={currentProfile} onClose={() => setSettingsVisible(false)} setMessages={setMessages} setTempApiError={setTempApiError} setTempSuccessMessage={setTempSuccessMessage} />}
+            {isSettingsVisible && <SettingsModal profile={currentProfile} onClose={() => setSettingsVisible(false)} setMessages={setMessages} setTempApiError={setTempApiError} setTempSuccessMessage={setTempSuccessMessage} />}
             {showProfileSwitcher && (
               <ProfileSwitcher
                 profiles={profiles}
@@ -264,7 +244,7 @@ const Home = () => {
             </div>
           </form>
           <div className="flex flex-grow overflow-auto">
-            <div className="w-full overflow-auto" style={{ maxHeight: `calc(90vh - 100px)` }}>
+            <div className="w-full overflow-auto" style={{ maxHeight: `calc(98vh - 100px)` }}>
               <Chat
                 messages={messages}
                 setMessages={setMessages}
@@ -272,7 +252,7 @@ const Home = () => {
                 setNewMessage={setNewMessage}
                 onSendMessage={handleSubmit}
                 isSubmitting={isSubmitting}
-                loadMoreMessages={loadMoreMessages}
+                currentProfileRef={currentProfileRef}
               />
             </div>
           </div>

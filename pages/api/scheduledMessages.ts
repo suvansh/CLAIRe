@@ -1,21 +1,31 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getScheduledMessages, removeSentMessages } from '../../utils/scheduledMessageUtils';
+import { getMemory } from '../../utils/utils';
+import { ChromaChatMessageHistory } from '../../services/ChromaChatMessageHistory';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    res.setHeader('Allow', ['GET']);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
+    return;
   }
-  if (!req.query.user) {
-    return res.status(400).json({ message: 'Invalid request body' });
+
+  const { uuid: uuidRaw, name } = req.query;
+  const uuid = uuidRaw as string;
+
+  const { memory } = await getMemory({ uuid: uuid, name: name as string });
+
+  const scheduledMessages = getScheduledMessages(uuid);
+
+  // Add the sent messages to chat history
+  for (const message of scheduledMessages) {
+    const { text, id, isUser, images, timestamp } = message;
+    (memory.chatHistory as ChromaChatMessageHistory).addAIChatMessageMetadata(text, { id, isUser, images, timestamp });
   }
 
-  const user = req.query.user as string;
-
-  const scheduledMessages = getScheduledMessages(user);
-
-  // Remove the sent messages after they've been fetched
+  // Remove the sent messages
   const sentMessageIds = scheduledMessages.map((message) => message.id);
-  removeSentMessages(user, sentMessageIds);
+  removeSentMessages(uuid, sentMessageIds);
 
   res.json({ messages: scheduledMessages });
 }

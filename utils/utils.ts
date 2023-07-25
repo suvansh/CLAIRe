@@ -36,6 +36,6 @@ export async function getMemory(profile: Profile) {
     return { chroma, memory };
 }
 
-export const messageToLangChainMessage = (message: IMessage) : BaseMessage => {
+export const messageToLangChainMessage = (message: IMessage): BaseMessage => {
     return message.isUser ? new HumanMessage(message.text) : new AIMessage(message.text);
 }

@@ -160,7 +160,7 @@ export class ClaireMemory extends BaseChatMemory implements ClaireMemoryInput {
     // adapted from VectorStoreRetrieverMemory
     const query = getInputValue(inputs, this.inputKey);
     const queryResults = await (this.chatHistory as ChromaChatMessageHistory).searchMessagesSemantic(query);
-    const fullResults = await (this.chatHistory as ChromaChatMessageHistory).searchMessagesExact(fullSerializedMessages);
+    const fullResults = await (this.chatHistory as ChromaChatMessageHistory).searchMessagesSemantic(fullSerializedMessages);
     let combinedResults: DocumentMetadata[] = [...queryResults, ...fullResults];
     combinedResults = combinedResults.filter(
       (result, index, self) =>

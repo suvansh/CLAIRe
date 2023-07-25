@@ -87,61 +87,66 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
     }
 
     async getAdjacentMessages(
-        message: DocumentMetadata | IMessage | undefined,
+        message: DocumentMetadata | IMessage | string | undefined,
         prevMessages: number = 4,
         nextMessages: number = 5
     ): Promise<DocumentMetadata[]> {
         let id: number;
         if (message === undefined) {
-            console.log("message is undefined")
             id = await this.collection.count() - 1;
         } else if ((message as IMessage).isUser !== undefined) { // message is IMessage
-            console.log("message is IMessage")
             const messageI = message as IMessage;
-            console.log(messageI);
             const timestampMoment = moment(messageI.timestamp);
             const getResponse = await this.collection.get({
                 include: [IncludeEnum.Documents, IncludeEnum.Metadatas],
-                // filter for timestamp being within +/- 5 min of timestamp – in case the response took a while to generate
-                // where: {
-                //     "$and": [
-                //         {
-                //             "timestamp": {
-                //                 "$gte": timestampMoment.clone().subtract(5, "minutes").valueOf()
-                //             }
-                //         },
-                //         {
-                //             "timestamp": {
-                //                 "$lte": timestampMoment.clone().add(5, "minutes").valueOf()
-                //             }
-                //         },
-                //         {
-                //             "isUser": {
-                //                 "$eq": messageI.isUser.toString()
-                //             }
-                //         }
-                //     ]
-                // },
-                // whereDocument: { "$contains": messageI.text },
+                // filter for timestamp being within +/- 1 min of timestamp – in case the response took a while to generate
+                where: {
+                    "$and": [
+                        {
+                            "timestamp": {
+                                "$gte": timestampMoment.clone().subtract(1, "minutes").valueOf()
+                            }
+                        },
+                        {
+                            "timestamp": {
+                                "$lte": timestampMoment.clone().add(1, "minutes").valueOf()
+                            }
+                        },
+                        {
+                            "isUser": {
+                                "$eq": messageI.isUser.toString()
+                            }
+                        }
+                    ]
+                },
+                // replace apostrophes with double apostrophes to escape them
+                whereDocument: { "$contains": messageI.text.replaceAll("'", "''") },
             });
-            console.log(getResponse);
+
             if (getResponse.ids && getResponse.ids.length > 0) {
                 // match messageI.text to document
                 // then sort by distance of timestamp from metadata from reference value messageI.timestamp
                 // then take the closest one
-                id = +getResponse.ids.filter((id_, i) => {
+                const matchingText = getResponse.ids.filter((id_, i) => {
                     return getResponse.documents[i] === messageI.text;
-                }).map((id_, i): [string, number] => {
+                });
+                if (matchingText.length === 0) {
+                    return [];
+                }
+                id = +matchingText.map((id_, i): [string, number] => {
                     return [id_, Math.abs((getResponse.metadatas[i]?.timestamp ?? 0) as number - messageI.timestamp)];
                 }).sort((a, b) => {
                     return a[1] - b[1];
                 })[0][0];
             } else {
-                console.log("none found");
+                return [];
+            }
+        } else if (typeof message === "string") {  // message is id
+            id = parseInt(message);
+            if (isNaN(id)) {
                 return [];
             }
         } else {  // message is DocumentMetadata
-            console.log("message is DocumentMetadata")
             id = parseInt(message.id);
             if (isNaN(id)) {
                 return [];
@@ -182,6 +187,11 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
     }
 
     async clear(): Promise<void> {
-        console.log("clear");  // TODO
+        if (!this.chroma.index) return;
+        const collectionName = this.collection.name;
+        await this.chroma.index.deleteCollection({ name: collectionName });
+        await this.chroma.index.createCollection({ name: collectionName });
+        this.collection = await this.chroma.ensureCollection();
+        this.currentId = 0;
     }
 }
