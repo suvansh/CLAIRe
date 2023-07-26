@@ -34,7 +34,6 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
 
 
   const loadSearchResult = async (messageId: string): Promise<void> => {
-    setMessages([]);
     if (currentProfileRef.current === null) {
       // currentProfile is not set yet, so we can't make the API request.
       return;
@@ -82,7 +81,6 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
 
 
   const searchMessages = async (query: string): Promise<string[]> => {
-    setMessages([]);
     if (currentProfileRef.current === null) {
       // currentProfile is not set yet, so we can't make the API request.
       return [];
@@ -273,6 +271,8 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
           </button>
         )}
       </div>
+
+      <hr className="border border-purple-300" />
 
       {/* Messages */}
       <div className="overflow-y-scroll flex-grow space-y-2 flex flex-col" ref={messageContainerRef}>
