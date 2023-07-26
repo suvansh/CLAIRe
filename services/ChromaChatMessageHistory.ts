@@ -97,30 +97,23 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
         } else if ((message as IMessage).isUser !== undefined) { // message is IMessage
             const messageI = message as IMessage;
             const timestampMoment = moment(messageI.timestamp);
+
             const getResponse = await this.collection.get({
                 include: [IncludeEnum.Documents, IncludeEnum.Metadatas],
-                // filter for timestamp being within +/- 1 min of timestamp – in case the response took a while to generate
                 where: {
                     "$and": [
                         {
                             "timestamp": {
-                                "$gte": timestampMoment.clone().subtract(1, "minutes").valueOf()
-                            }
-                        },
-                        {
-                            "timestamp": {
-                                "$lte": timestampMoment.clone().add(1, "minutes").valueOf()
+                                "$eq": timestampMoment.valueOf()
                             }
                         },
                         {
                             "isUser": {
-                                "$eq": messageI.isUser.toString()
+                                "$eq": messageI.isUser ? 1 : 0
                             }
                         }
                     ]
-                },
-                // replace apostrophes with double apostrophes to escape them
-                whereDocument: { "$contains": messageI.text.replaceAll("'", "''") },
+                }
             });
 
             if (getResponse.ids && getResponse.ids.length > 0) {
@@ -152,6 +145,7 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
                 return [];
             }
         }
+        
         const adjacentIds: string[] = [];
         for (let i = id - prevMessages; i <= id + nextMessages; i++) {
             adjacentIds.push(i.toString());
@@ -170,20 +164,49 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
         return [];
     }
 
+    async checkUnique(message: string, timestamp: number, isUser: boolean) : Promise<boolean> {
+        const timestampMoment = moment(timestamp);
+        const getResponse = await this.collection.get({
+            whereDocument: { $contains: message },
+            where: {
+                "$and": [
+                    {
+                        "timestamp": {
+                            "$eq": timestampMoment.valueOf()
+                        }
+                    },
+                    {
+                        "isUser": {
+                            "$eq": isUser ? 1 : 0
+                        }
+                    }
+                ]
+            }
+        });
+        if (getResponse.documents && getResponse.documents.length > 0) {
+            return false;
+        }
+        return true;
+    }
+
     /* This is the method to use to add a user message to the chat history. Metadata includes all data from IMessage interface */
     async addUserMessageMetadata(message: string, metadata: Record<string, any>): Promise<void> {
-        await this.chroma.addDocuments(
-            [new Document({ pageContent: message, metadata: { isUser: true, ...metadata } })],
-            { ids: [`${this.currentId++}`] }
-        )
+        if (await this.checkUnique(message, metadata.timestamp, true)) {
+            await this.chroma.addDocuments(
+                [new Document({ pageContent: message, metadata: { isUser: true, ...metadata } })],
+                { ids: [`${this.currentId++}`] }
+            )
+        }
     }
 
     /* This is the method to use to add an AI message to the chat history. Metadata includes all data from IMessage interface */
     async addAIChatMessageMetadata(message: string, metadata: Record<string, any>): Promise<void> {
-        await this.chroma.addDocuments(
-            [new Document({ pageContent: message, metadata: { isUser: false, ...metadata } })],
-            { ids: [`${this.currentId++}`] }
-        )
+        if (await this.checkUnique(message, metadata.timestamp, false)) {
+            await this.chroma.addDocuments(
+                [new Document({ pageContent: message, metadata: { isUser: false, ...metadata } })],
+                { ids: [`${this.currentId++}`] }
+            )
+        }
     }
 
     async clear(): Promise<void> {

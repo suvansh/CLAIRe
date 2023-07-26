@@ -1,7 +1,7 @@
 import { Chroma } from "langchain/vectorstores/chroma";
 import { OpenAI } from "langchain/llms/openai";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { ClaireMemory } from '../../services/EntityVectorStoreMemory';
+import { ClaireMemory } from '../../services/ClaireMemory';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getMemory, getMessageCollectionName } from '../../utils/utils';
 

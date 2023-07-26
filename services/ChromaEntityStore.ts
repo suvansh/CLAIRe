@@ -6,6 +6,10 @@ import { IncludeEnum, Metadata } from "chromadb/src/types"
 import type { ChromaClient, Collection } from "chromadb";
 import type { DocumentMetadata } from "../types/types";
 import moment from "moment";
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config({ path: '.env.local' });
 
 
 const DEFAULT_SIMILARITY_K: number = 3;
@@ -19,20 +23,19 @@ export default class ChromaEntityStore extends BaseEntityStore {
     private chromaClient: ChromaClient | undefined;
     private limit: number | undefined;
 
-    private constructor(chromaCollection: string, store: Chroma, collection: Collection, limit: number | undefined) {
+    private constructor(collectionName: string, store: Chroma, collection: Collection, limit: number | undefined) {
         super();
-        this.collectionName = chromaCollection;
+        this.collectionName = collectionName;
         this.store = store;
         this.collection = collection;
         this.chromaClient = this.store.index;
         this.limit = limit;
     }
 
-    static async create(chromaCollection: string, limit: number | undefined = undefined): Promise<ChromaEntityStore> {
-        const collectionName = chromaCollection;
-        const store = new Chroma(new OpenAIEmbeddings(), { collectionName });
+    static async create(collectionName: string, limit: number | undefined = undefined): Promise<ChromaEntityStore> {
+        const store = new Chroma(new OpenAIEmbeddings(), { collectionName, url: process.env.CHROMA_URL ?? "http://localhost:8000" });
         const collection = await store.ensureCollection();
-        return new ChromaEntityStore(chromaCollection, store, collection, limit);
+        return new ChromaEntityStore(collectionName, store, collection, limit);
     }
 
     static getEntityStringFromDocs(docs: DocumentMetadata[]): string {
@@ -118,7 +121,7 @@ export default class ChromaEntityStore extends BaseEntityStore {
         await this.chromaClient?.deleteCollection({
             name: this.collectionName
         });
-        this.store = new Chroma(new OpenAIEmbeddings(), { collectionName: this.collectionName });
+        this.store = new Chroma(new OpenAIEmbeddings(), { collectionName: this.collectionName, url: process.env.CHROMA_URL ?? "http://localhost:8000" });
         this.chromaClient = this.store.index;
         this.collection = await this.store.ensureCollection();
     }

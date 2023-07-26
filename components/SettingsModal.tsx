@@ -19,7 +19,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ profile, onClose, setTemp
 
     const handleClearData = async () => {
         if (!profile) {
-            console.log('No profile selected');
             return;
         }
         if (window.confirm(`Are you sure you want to erase all data for user ${profile.name}?`)) {

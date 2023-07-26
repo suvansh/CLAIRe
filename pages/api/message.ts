@@ -13,8 +13,8 @@ import moment, { Moment } from 'moment';
 
 import { CLAIRE_ENTITY_MEMORY_CONVERSATION_TEMPLATE, CLAIRE_CHROMA_MEMORY_CONVERSATION_TEMPLATE, CLAIRE_MEMORY_CONVERSATION_TEMPLATE } from "../../prompts/memory";
 import { VectorStoreChatMemory } from '../../services/VectorStoreChatMemory';
-import { ClaireMemory } from '../../services/EntityVectorStoreMemory';
-import { DEFAULT_PROFILE } from '../../lib/consts';
+import { ClaireMemory } from '../../services/ClaireMemory';
+import { DEFAULT_PROFILE, debug } from '../../lib/consts';
 import { writeMessageToFile } from '../../utils/scheduledMessageUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from 'dotenv';
@@ -49,9 +49,10 @@ async function respondNow(input: string, history: IMessage[], datetime: Moment, 
         llm: chat,
     });
     const response = await chain.predict({ input: input, user: profile.name, datetime: datetimeString, history: history.map(messageToLangChainMessage) });
-    // const formattedPrompt = CLAIRE_MEMORY_CONVERSATION_TEMPLATE.format({ input: input, user: user, datetime: datetimeString, history: history.map(messageToLangChainMessage) });
-    // console.log("Memory inspection:\n",
-    //              await memory.loadMemoryVariables({ input: input, user: user, datetime: datetimeString, history: history.map(messageToLangChainMessage) }));
+    if (debug) {
+        console.log("Memory inspection:\n",
+                    await memory.loadMemoryVariables({ input: input, user: profile.name, datetime: datetimeString, history: history.map(messageToLangChainMessage) }));
+    }
     return response;
 }
 
@@ -75,10 +76,16 @@ async function respondLater(input: string, history: IMessage[], responseNow: str
     const response = await llm.call([new HumanMessage(formattedPrompt)]);
     const parsedResponse = await scheduledMessageParser.parse(response.content);
     if (!parsedResponse.scheduledMessage) {
+        if (debug) {
+            console.log("No scheduled message found in response:\n", response);
+        }
         return;
     }
     const timestamp = moment(`${parsedResponse.date} ${parsedResponse.time}`, "MM/DD/YYYY HH:mm").valueOf();
     const scheduledMessage = { id: uuidv4(), isUser: false, text: parsedResponse.scheduledMessage, images: [], timestamp: timestamp };
+    if (debug) {
+        console.log("Scheduled message:\n", scheduledMessage);
+    }
     writeMessageToFile(profile.uuid, scheduledMessage);
 }
 

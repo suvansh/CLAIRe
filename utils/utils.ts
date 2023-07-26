@@ -3,8 +3,12 @@ import { Chroma } from "langchain/vectorstores/chroma";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { ChatOpenAI } from "langchain/chat_models/openai";
 import { AIMessage, BaseMessage, HumanMessage } from "langchain/schema";
-import { ClaireMemory } from "../services/EntityVectorStoreMemory";
+import { ClaireMemory } from "../services/ClaireMemory";
 import { IMessage, Profile } from "../types/types";
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config({ path: '.env.local' });
 
 
 export function getClaireDirectory(): string {
@@ -22,7 +26,7 @@ export function getEntityCollectionName(profile: Profile): string {
 }
 
 export async function getMemory(profile: Profile) {
-    const chroma = new Chroma(new OpenAIEmbeddings(), { collectionName: getMessageCollectionName(profile) });
+    const chroma = new Chroma(new OpenAIEmbeddings(), { collectionName: getMessageCollectionName(profile), url: process.env.CHROMA_URL ?? "http://localhost:8000" });
     const memory = await ClaireMemory.create({
         chroma: chroma,
         llm: new ChatOpenAI({ temperature: 0 }),

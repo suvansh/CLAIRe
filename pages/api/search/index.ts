@@ -34,7 +34,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     results.sort((a, b) => parseInt(b.id) - parseInt(a.id));  // sort by id descending (recent first)
-    console.log(results);
 
     const messages: IMessage[] = results.map((doc) => {
         return {

@@ -34,6 +34,7 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
 
 
   const loadSearchResult = async (messageId: string): Promise<void> => {
+    setMessages([]);
     if (currentProfileRef.current === null) {
       // currentProfile is not set yet, so we can't make the API request.
       return;
@@ -81,6 +82,7 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
 
 
   const searchMessages = async (query: string): Promise<string[]> => {
+    setMessages([]);
     if (currentProfileRef.current === null) {
       // currentProfile is not set yet, so we can't make the API request.
       return [];
@@ -187,18 +189,6 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
       debouncedHandleScroll.cancel();
     };
   }, []);
-
-  useEffect(() => {
-    if (!messagesRef.current.length) {
-      return;
-    }
-    if (messageContainerRef.current) {
-      const isNearBottom = messageContainerRef.current.scrollHeight - messageContainerRef.current.scrollTop <= messageContainerRef.current.clientHeight + 50;
-      if (messageContainerRef.current && isNearBottom) {
-        messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-      }
-    }
-  }, [messages]);
 
   useEffect(() => {
     if (searchOpen && searchInputRef.current) {

@@ -171,7 +171,7 @@ export class ClaireMemory extends BaseChatMemory implements ClaireMemoryInput {
 
     // Map to a new array of metadata-string tuples with the required prefix based on 'isUser'
     const prefixedResults: [Metadata | null, string][] = combinedResults.map((result) => {
-      return [result.metadata, (result.metadata?.isUser ? this.humanPrefix : this.aiPrefix) + (result.document ?? "")]
+      return [result.metadata, (result.metadata?.isUser ? this.humanPrefix : this.aiPrefix) + ": " + (result.document ?? "")]
     });
 
     const memoryContent = this.returnDocs
@@ -214,13 +214,13 @@ export class ClaireMemory extends BaseChatMemory implements ClaireMemoryInput {
     }
 
     // ChromaChatMessageHistory
-    (this.chatHistory as ChromaChatMessageHistory).addUserMessageMetadata(input, {
+    await (this.chatHistory as ChromaChatMessageHistory).addUserMessageMetadata(input, {
       id: "",
       isUser: true,
       images: [],
       timestamp: moment().valueOf()
     });
-    (this.chatHistory as ChromaChatMessageHistory).addAIChatMessageMetadata(output, {
+    await (this.chatHistory as ChromaChatMessageHistory).addAIChatMessageMetadata(output, {
       id: "",
       isUser: false,
       images: [],
