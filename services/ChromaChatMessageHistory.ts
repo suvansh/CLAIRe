@@ -100,11 +100,17 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
 
             const getResponse = await this.collection.get({
                 include: [IncludeEnum.Documents, IncludeEnum.Metadatas],
+                // filter for timestamp being within +/- 30 sec of timestamp – sometimes there's small discrepancies
                 where: {
                     "$and": [
                         {
                             "timestamp": {
-                                "$eq": timestampMoment.valueOf()
+                                "$gte": timestampMoment.clone().subtract(30, "seconds").valueOf()
+                            }
+                        },
+                        {
+                            "timestamp": {
+                                "$lte": timestampMoment.clone().add(30, "seconds").valueOf()
                             }
                         },
                         {
@@ -115,6 +121,7 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
                     ]
                 }
             });
+            console.log(getResponse);
 
             if (getResponse.ids && getResponse.ids.length > 0) {
                 // match messageI.text to document
@@ -145,7 +152,7 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
                 return [];
             }
         }
-        
+
         const adjacentIds: string[] = [];
         for (let i = id - prevMessages; i <= id + nextMessages; i++) {
             adjacentIds.push(i.toString());
@@ -164,7 +171,7 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
         return [];
     }
 
-    async checkUnique(message: string, timestamp: number, isUser: boolean) : Promise<boolean> {
+    async checkUnique(message: string, timestamp: number, isUser: boolean): Promise<boolean> {
         const timestampMoment = moment(timestamp);
         const getResponse = await this.collection.get({
             whereDocument: { $contains: message },
