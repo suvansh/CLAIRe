@@ -32,6 +32,8 @@ const Home = () => {
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
 
   const currentProfileRef = useRef(currentProfile);
+  // Create a ref for the Chat component container
+  const messageContainerRef = useRef<HTMLDivElement | null>(null);
 
   const handleSelectProfile = (profile: Profile) => {
     setCurrentProfile(profile);
@@ -48,6 +50,15 @@ const Home = () => {
     }
     if (clear) {
       setMessages([]);
+    }
+  };
+
+  const scrollDownMessages = () => {
+    if (messageContainerRef.current) {
+      const isNearBottom = messageContainerRef.current.scrollHeight - messageContainerRef.current.scrollTop <= messageContainerRef.current.clientHeight + 80;
+      if (messageContainerRef.current && isNearBottom) {
+        messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+      }
     }
   };
 
@@ -130,6 +141,7 @@ const Home = () => {
 
       const updatedMessages = [...messages, { id: uuidv4(), text: incomingMessage, isUser: true, images: [], timestamp: moment().valueOf() }];
       setMessages(updatedMessages);
+      scrollDownMessages();
 
       const res = await fetch('/api/message', {
         method: 'POST',
@@ -160,6 +172,7 @@ const Home = () => {
             const updatedLastMessage = { ...lastMessage, text: lastMessage.text + text };
             return [...prevMessages.slice(0, -1), updatedLastMessage];
           });
+          scrollDownMessages();
         }
       }
 
@@ -253,6 +266,7 @@ const Home = () => {
                 onSendMessage={handleSubmit}
                 isSubmitting={isSubmitting}
                 currentProfileRef={currentProfileRef}
+                messageContainerRef={messageContainerRef}
               />
             </div>
           </div>

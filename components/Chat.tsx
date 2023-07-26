@@ -13,9 +13,10 @@ interface IChatProps {
   onSendMessage: (e: FormEvent, newMessage: string) => void;
   isSubmitting: boolean;
   currentProfileRef: React.RefObject<Profile | null>;
+  messageContainerRef: React.RefObject<HTMLDivElement>;
 }
 
-const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage, isSubmitting, currentProfileRef }: IChatProps) => {
+const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage, isSubmitting, currentProfileRef, messageContainerRef }: IChatProps) => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -28,9 +29,6 @@ const Chat = ({ messages, setMessages, newMessage, setNewMessage, onSendMessage,
   messagesRef.current = messages;
   // Create a ref for the search input
   const searchInputRef = useRef<HTMLDivElement | null>(null);
-  // Create a ref for the Chat component container
-  const messageContainerRef = useRef<HTMLDivElement | null>(null);
-
 
 
   const loadSearchResult = async (messageId: string): Promise<void> => {
