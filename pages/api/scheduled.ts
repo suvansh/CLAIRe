@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getScheduledMessages, removeSentMessages } from '../../utils/scheduledMessageUtils';
+import { getScheduledMessages, removeSentMessages } from '../../lib/scheduled';
 import { getMemory } from '../../utils/utils';
 import { ChromaChatMessageHistory } from '../../services/ChromaChatMessageHistory';
 

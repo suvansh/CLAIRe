@@ -25,6 +25,12 @@ Example: `/semantic {2} bad dates`
 ### Profiles
 CLAIRe supports separate profiles backed by separate Chroma collections to prevent cross-over of information.
 
+## Architecture
+Learn more about how CLAIRe works [here](https://brilliantly.ai/blog/claire/).
+
+The below diagram illustrates the relationship between some of the main components of CLAIRe's backend.
+
+<img src="images/arch.png" alt="Architecture" width="800">
 
 ## Getting Started
 

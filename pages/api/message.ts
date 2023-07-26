@@ -15,11 +15,11 @@ import { CLAIRE_ENTITY_MEMORY_CONVERSATION_TEMPLATE, CLAIRE_CHROMA_MEMORY_CONVER
 import { VectorStoreChatMemory } from '../../services/VectorStoreChatMemory';
 import { ClaireMemory } from '../../services/ClaireMemory';
 import { DEFAULT_PROFILE, debug } from '../../lib/consts';
-import { writeMessageToFile } from '../../utils/scheduledMessageUtils';
+import { writeMessageToFile } from '../../lib/scheduled';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from 'dotenv';
 import { AIMessage, HumanMessage } from 'langchain/schema';
-import { CLAIRE_SCHEDULE_MESSAGE_TEMPLATE, scheduledMessageParser } from '../../prompts/scheduledMessages';
+import { CLAIRE_SCHEDULE_MESSAGE_TEMPLATE, scheduledMessageParser } from '../../prompts/scheduled';
 import { getMemory, messageToLangChainMessage } from '../../utils/utils';
 
 // Load environment variables from .env file

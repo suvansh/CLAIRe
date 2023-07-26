@@ -76,7 +76,7 @@ const Home = () => {
 
   useEffect(() => {
     const fetchScheduledMessages = async () => {
-      const res = await fetch(`/api/scheduledMessages?uuid=${currentProfileRef.current?.uuid}&name=${currentProfileRef.current?.name}`);
+      const res = await fetch(`/api/scheduled?uuid=${currentProfileRef.current?.uuid}&name=${currentProfileRef.current?.name}`);
       if (res.ok) {
         const data = await res.json();
         if (data.messages) {

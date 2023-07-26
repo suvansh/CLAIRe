@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { IMessage, Profile } from '../types/types';
 import moment from 'moment';
-import { getClaireDirectory } from './utils';
+import { getClaireDirectory } from '../utils/utils';
 
 /**
  * Returns an array of scheduled messages that are due to be sent to the specified user.
