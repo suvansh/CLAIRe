@@ -121,7 +121,6 @@ export class ChromaChatMessageHistory extends BaseChatMessageHistory {
                     ]
                 }
             });
-            console.log(getResponse);
 
             if (getResponse.ids && getResponse.ids.length > 0) {
                 // match messageI.text to document

@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { Chroma } from "langchain/vectorstores/chroma";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { ChatOpenAI } from "langchain/chat_models/openai";
@@ -14,8 +15,13 @@ config({ path: '.env.local' });
 export function getClaireDirectory(): string {
     const rootDirectory = process.cwd();
     const claireDirectory = path.join(rootDirectory, '.claire');
+  
+    if (!fs.existsSync(claireDirectory)) {
+      fs.mkdirSync(claireDirectory);
+    }
+  
     return claireDirectory;
-}
+  }
 
 export function getMessageCollectionName(profile: Profile): string {
     return `${profile.uuid}-claire-message-collection`;
