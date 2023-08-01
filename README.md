@@ -1,5 +1,8 @@
 # CLAIRe
 
+## Log
+- 7/31 (eba9ffb): Important bug fix that everyone will need – the `.claire` directory was not being created before being used, resulting in errors for all message and profile operations. 
+
 ## Abilities
 ### Active messaging
 CLAIRe can proactively reach out to you to follow up on past conversations, challenging the conventional call-response paradigm of AI interactions:
@@ -53,6 +56,9 @@ docker-compose up -d --build
 Note that CLAIRe's [Docker Compose file](docker-compose.yml) relies on Chroma being in the same directory as CLAIRe, but you can edit the path to suit your setup.
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to use CLAIRe!
+
+### Debugging
+To debug issues with CLAIRe, the first stop is the Docker logs: `docker logs claire-claire-1` for the CLAIRe container, and `docker logs claire-server-1` for the Chroma container. The frontend will display a catch-all error message in red text if there's an issue with the backend, but the logs will be the best way to figure out what's going on.
 
 ### Development
 First, run Chroma 
