@@ -4,7 +4,6 @@ import Chat from '../components/Chat';
 import ModeButtons from '../components/ModeButtons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMoon, faSun, faCog, faUser } from '@fortawesome/free-solid-svg-icons';
-import SettingsModal from '../components/SettingsModal';
 import ProfileSwitcher from '../components/ProfileSwitcher';
 import type { IMessage, Profile } from '../types/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,11 +12,12 @@ import moment from 'moment';
 
 
 const Home = () => {
+  const [requesterId, setRequesterId] = useState<string>("");
+
   const [apiError, setApiError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isErrorMessageVisible, setIsErrorMessageVisible] = useState<boolean>(false);
   const [isSuccessMessageVisible, setIsSuccessMessageVisible] = useState<boolean>(false);
-  const [isSettingsVisible, setSettingsVisible] = useState(false);
 
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
@@ -64,6 +64,16 @@ const Home = () => {
 
   // effects
   useEffect(() => {
+    let id = localStorage.getItem('requesterId');
+    if (!id) {
+      id = uuidv4();
+      localStorage.setItem('requesterId', id as string);
+    }
+
+    setRequesterId(id);
+  }, []);
+
+  useEffect(() => {
     currentProfileRef.current = currentProfile;
   }, [currentProfile]);
 
@@ -87,7 +97,7 @@ const Home = () => {
 
   useEffect(() => {
     const fetchScheduledMessages = async () => {
-      const res = await fetch(`/api/scheduled?uuid=${currentProfileRef.current?.uuid}&name=${currentProfileRef.current?.name}`);
+      const res = await fetch(`/api/scheduled?uuid=${currentProfileRef.current?.uuid}&name=${currentProfileRef.current?.name}&requesterId=${requesterId}`);
       if (res.ok) {
         const data = await res.json();
         if (data.messages) {
@@ -136,7 +146,8 @@ const Home = () => {
         history: messages.slice(-20),
         input: incomingMessage,
         model: model,
-        profile: currentProfileRef.current
+        profile: currentProfileRef.current,
+        requesterId: requesterId
       };
 
       const updatedMessages = [...messages, { id: uuidv4(), text: incomingMessage, isUser: true, images: [], timestamp: moment().valueOf() }];
@@ -220,15 +231,11 @@ const Home = () => {
               </span>
             </h1>
             <div className="absolute top-0 right-0 mt-2 mr-2 flex items-center space-x-2">
-              <button className="dark:text-gray-200 text-gray-700" onClick={() => setSettingsVisible(true)}>
-                <FontAwesomeIcon icon={faCog} />
-              </button>
               <button className="dark:text-gray-200 text-gray-700 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded flex items-center" onClick={() => setShowProfileSwitcher(true)}>
                 <FontAwesomeIcon icon={faUser} />
                 <span className="ml-1">{currentProfile?.name ?? ""}</span>
               </button>
             </div>
-            {isSettingsVisible && <SettingsModal profile={currentProfile} onClose={() => setSettingsVisible(false)} setMessages={setMessages} setTempApiError={setTempApiError} setTempSuccessMessage={setTempSuccessMessage} />}
             {showProfileSwitcher && (
               <ProfileSwitcher
                 profiles={profiles}

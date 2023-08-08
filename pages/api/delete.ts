@@ -7,8 +7,5 @@ import { getMemory, getMessageCollectionName } from '../../utils/utils';
 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    const profile = req.body.profile;
-    const { chroma, memory } = await getMemory(profile);
-    await memory.clear();
-    res.status(200).json({ message: 'Data cleared successfully.' });
+    res.status(404).end();  // Not Found
 }

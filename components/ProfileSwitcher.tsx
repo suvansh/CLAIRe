@@ -16,9 +16,6 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
     useOutsideAlerter(ref, onClose);
 
     const [newProfileName, setNewProfileName] = useState<string>("");
-    const [editedProfileName, setEditedProfileName] = useState<string>("");
-    const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
 
     const handleAddProfile = async (event: FormEvent) => {
         event.preventDefault();
@@ -56,42 +53,9 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
         }
     };
 
-    const handleRenameProfile = async (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && editingProfile !== null) {
-            const updatedProfile = { oldProfile: editingProfile, editedProfileName };
-            const response = await fetch('/api/profiles/rename', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updatedProfile) // send full updated profile
-            });
-            if (response.ok) {
-                const {profiles, newProfile} = await response.json();
-                onProfileChange(profiles, newProfile, false);
-                setEditingProfile(null);
-            }
-        }
-    };
-
-    const handleCancel = () => {
-        setEditingProfile(null);
-    };
-
-    const handleEdit = (profile: Profile) => {
-        setEditingProfile(profile);
-        setEditedProfileName(profile.name);
-    };
-
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         setNewProfileName(event.target.value);
     };
-
-    useEffect(() => {
-        if (editingProfile && inputRef.current) {
-            inputRef.current.focus();
-        }
-    }, [editingProfile]);
 
     return (
         <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -109,27 +73,7 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ profiles, onClose, on
                     </div>
                     {profiles.map((profile) => (
                         <div key={profile.uuid} className="flex justify-between items-center mt-4">
-                            {editingProfile === profile ? (
-                                <input
-                                    type="text"
-                                    ref={inputRef}
-                                    value={editedProfileName}
-                                    onChange={e => setEditedProfileName(e.target.value)}
-                                    onKeyDown={handleRenameProfile}
-                                />
-                            ) : (
-                                <button key={profile.uuid} onClick={() => onSelectProfile(profile)} className="ml-2 bg-blue-500 text-white px-3 py-1 rounded-md mt-2">{profile.name}</button>
-                            )}
-                            <div>
-                                {editingProfile === profile ? (
-                                    <button onClick={handleCancel} className="bg-yellow-500 text-white px-3 py-1 rounded-md">Cancel</button>
-                                ) : (
-                                    <>
-                                        <button onClick={() => handleEdit(profile)} className="ml-2 bg-yellow-500 text-white px-3 py-1 rounded-md">Edit</button>
-                                        <button onClick={() => handleDeleteProfile(profile)} className="ml-2 bg-red-500 text-white px-3 py-1 rounded-md">Delete</button>
-                                    </>
-                                )}
-                            </div>
+                            <button key={profile.uuid} onClick={() => onSelectProfile(profile)} className="ml-2 bg-blue-500 text-white px-3 py-1 rounded-md mt-2">{profile.name}</button>
                         </div>
                     ))}
                     <form onSubmit={handleAddProfile} className="mt-4">

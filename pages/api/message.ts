@@ -56,7 +56,7 @@ async function respondNow(input: string, history: IMessage[], datetime: Moment, 
     return response;
 }
 
-async function respondLater(input: string, history: IMessage[], responseNow: string, datetime: Moment, chroma: Chroma, memory: ClaireMemory, model: string, profile: Profile) {
+async function respondLater(input: string, history: IMessage[], responseNow: string, datetime: Moment, chroma: Chroma, memory: ClaireMemory, model: string, profile: Profile, requesterId: string) {
     const serializedMessages = getBufferString(
         history.slice(-3 * 2).map((message) => message.isUser ? new HumanMessage(message.text) : new AIMessage(message.text)),
         memory.humanPrefix ?? "Human",
@@ -86,7 +86,7 @@ async function respondLater(input: string, history: IMessage[], responseNow: str
     if (debug) {
         console.log("Scheduled message:\n", scheduledMessage);
     }
-    writeMessageToFile(profile.uuid, scheduledMessage);
+    writeMessageToFile(requesterId, scheduledMessage);
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -103,6 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const input: string = req.body.input;
     const model: string = req.body.model || 'gpt-3.5-turbo-16k';
     const profile: Profile = req.body.profile;
+    const requesterId: string = req.body.requesterId;
 
     const { chroma, memory } = await getMemory(profile);
     const cbs = getStreamingCbs(res);
@@ -112,5 +113,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const responseNow = await respondNow(input, history, datetime, chroma, memory, chat, profile, res);
     res.end();
-    await respondLater(input, history, responseNow, datetime, chroma, memory, model, profile);
+    await respondLater(input, history, responseNow, datetime, chroma, memory, model, profile, requesterId);
 }
